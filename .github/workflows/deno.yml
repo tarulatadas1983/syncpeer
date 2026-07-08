@@ -1,0 +1,60 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    env:
+      CI: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust build cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: packages/tauri-shell/src-tauri -> target
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Generate Tauri icons
+        run: npm run icons:generate
+
+      - name: Build frontend
+        run: npm run build:app
+
+      - name: Build Windows binary (no installer)
+        working-directory: packages/tauri-shell
+        # --no-bundle skips MSI/NSIS packaging entirely; we just want the
+        # raw compiled .exe, which runs standalone with no installer step.
+        run: npx tauri build --no-bundle
+
+      - name: Rename binary for clarity
+        run: |
+          copy packages\tauri-shell\src-tauri\target\release\tauri-shell.exe packages\tauri-shell\src-tauri\target\release\Syncpeer-portable.exe
+
+      - name: Upload portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: syncpeer-windows-portable
+          path: packages/tauri-shell/src-tauri/target/release/Syncpeer-portable.exe
+          if-no-files-found: error
