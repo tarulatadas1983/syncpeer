@@ -34,7 +34,12 @@ jobs:
           workspaces: packages/tauri-shell/src-tauri -> target
 
       - name: Install npm dependencies
-        run: npm ci
+        # npm ci is skipped here on purpose: @tauri-apps/cli ships its
+        # native binary as a platform-specific optional dependency, and
+        # a lockfile generated on Linux/macOS can cause npm ci to miss
+        # the win32 variant on Windows runners (npm/cli#4828).
+        # npm install recomputes optional deps for the current platform.
+        run: npm install
 
       - name: Generate Tauri icons
         run: npm run icons:generate
