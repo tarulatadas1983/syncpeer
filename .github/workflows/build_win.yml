@@ -34,12 +34,17 @@ jobs:
           workspaces: packages/tauri-shell/src-tauri -> target
 
       - name: Install npm dependencies
-        # npm ci is skipped here on purpose: @tauri-apps/cli ships its
-        # native binary as a platform-specific optional dependency, and
-        # a lockfile generated on Linux/macOS can cause npm ci to miss
-        # the win32 variant on Windows runners (npm/cli#4828).
-        # npm install recomputes optional deps for the current platform.
-        run: npm install
+        # @tauri-apps/cli ships its native binary as a platform-specific
+        # optional dependency. The committed package-lock.json was generated
+        # on Linux/macOS and simply doesn't contain the win32-x64-msvc
+        # optional entry, so neither `npm ci` nor a lockfile-respecting
+        # `npm install` will pull it in on Windows runners (npm/cli#4828).
+        # Removing the lockfile forces npm to resolve deps fresh for this
+        # platform, which does pull in the correct optional binary.
+        run: |
+          Remove-Item -Force -ErrorAction SilentlyContinue package-lock.json
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue node_modules
+          npm install
 
       - name: Generate Tauri icons
         run: npm run icons:generate
